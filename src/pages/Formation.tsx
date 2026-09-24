@@ -3,13 +3,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
 import { fetchCourses, enrollInCourse } from '../lib/database';
-import { BookOpen, Clock, Users, Search, GraduationCap } from 'lucide-react';
+import { BookOpen, Clock, Users, Search, GraduationCap, Plus, X } from 'lucide-react';
 
 export default function FormationPage() {
   const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCourse, setNewCourse] = useState({
+    title: '',
+    description: '',
+    category: 'Bíblia',
+    modules_count: 1,
+    lessons_count: 1,
+    duration: '1 hora',
+    level: 'beginner',
+  });
 
   useEffect(() => {
     loadCourses();
@@ -38,6 +48,40 @@ export default function FormationPage() {
     }
   };
 
+  const handleCreateCourse = async () => {
+    if (!user || !newCourse.title.trim() || !newCourse.description.trim()) return;
+
+    if (isSupabaseConfigured) {
+      // TODO: Implementar criação via Supabase
+      console.log('Criar curso via Supabase');
+    } else {
+      // Modo local
+      const course = localDb.createCourse({
+        title: newCourse.title,
+        description: newCourse.description,
+        category: newCourse.category,
+        modules_count: newCourse.modules_count,
+        lessons_count: newCourse.lessons_count,
+        duration: newCourse.duration,
+        level: newCourse.level,
+        instructor_id: user.id,
+      });
+      setCourses([course, ...courses]);
+    }
+
+    setNewCourse({
+      title: '',
+      description: '',
+      category: 'Bíblia',
+      modules_count: 1,
+      lessons_count: 1,
+      duration: '1 hora',
+      level: 'beginner',
+    });
+    setShowCreateModal(false);
+    loadCourses();
+  };
+
   const filtered = courses.filter(c => 
     c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -61,6 +105,13 @@ export default function FormationPage() {
           <h1 className="text-3xl font-serif font-semibold text-surface-900 tracking-tight">Formação</h1>
           <p className="text-surface-500 text-sm mt-1.5">Cursos e conteúdos para aprofundar sua fé</p>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-surface-900 text-white rounded-xl text-xs font-semibold hover:bg-surface-800 transition-colors shadow-sm"
+        >
+          <Plus size={14} />
+          Criar curso
+        </button>
       </div>
 
       <div className="relative">
@@ -109,6 +160,143 @@ export default function FormationPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Criar Curso */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-serif font-semibold text-surface-900">Criar Curso</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Título do Curso *
+                </label>
+                <input
+                  type="text"
+                  value={newCourse.title}
+                  onChange={e => setNewCourse({ ...newCourse, title: e.target.value })}
+                  placeholder="Ex: Introdução à Sagrada Escritura"
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Descrição *
+                </label>
+                <textarea
+                  value={newCourse.description}
+                  onChange={e => setNewCourse({ ...newCourse, description: e.target.value })}
+                  placeholder="Descreva o conteúdo do curso..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Categoria
+                </label>
+                <select
+                  value={newCourse.category}
+                  onChange={e => setNewCourse({ ...newCourse, category: e.target.value })}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                >
+                  <option value="Bíblia">Bíblia</option>
+                  <option value="Doutrina">Doutrina</option>
+                  <option value="Liturgia">Liturgia</option>
+                  <option value="História da Igreja">História da Igreja</option>
+                  <option value="Comunicação">Comunicação</option>
+                  <option value="Formação pastoral">Formação pastoral</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Módulos
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newCourse.modules_count}
+                    onChange={e => setNewCourse({ ...newCourse, modules_count: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Aulas
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newCourse.lessons_count}
+                    onChange={e => setNewCourse({ ...newCourse, lessons_count: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Duração
+                  </label>
+                  <input
+                    type="text"
+                    value={newCourse.duration}
+                    onChange={e => setNewCourse({ ...newCourse, duration: e.target.value })}
+                    placeholder="Ex: 20 horas"
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Nível
+                  </label>
+                  <select
+                    value={newCourse.level}
+                    onChange={e => setNewCourse({ ...newCourse, level: e.target.value })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  >
+                    <option value="beginner">Iniciante</option>
+                    <option value="intermediate">Intermediário</option>
+                    <option value="advanced">Avançado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-3 bg-surface-100 text-surface-700 rounded-xl text-sm font-semibold hover:bg-surface-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateCourse}
+                  disabled={!newCourse.title.trim() || !newCourse.description.trim()}
+                  className="flex-1 px-4 py-3 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Criar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
