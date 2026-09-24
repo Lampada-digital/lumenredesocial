@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchCourses, enrollInCourse } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
+import * as localDb from '../lib/localDatabase';
+import { fetchCourses, enrollInCourse } from '../lib/database';
 import { BookOpen, Clock, Users, Search, GraduationCap } from 'lucide-react';
 
 export default function FormationPage() {
@@ -15,19 +16,26 @@ export default function FormationPage() {
   }, []);
 
   const loadCourses = async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
+    if (isSupabaseConfigured) {
+      const data = await fetchCourses(50);
+      setCourses(data);
+    } else {
+      const data = localDb.getCourses();
+      setCourses(data);
     }
-
-    const data = await fetchCourses(50);
-    setCourses(data);
     setLoading(false);
   };
 
   const handleEnroll = async (courseId: string) => {
     if (!user) return;
-    await enrollInCourse(courseId, user.id);
+
+    if (isSupabaseConfigured) {
+      await enrollInCourse(courseId, user.id);
+    } else {
+      localDb.enrollInCourse(courseId, user.id);
+      const data = localDb.getCourses();
+      setCourses(data);
+    }
   };
 
   const filtered = courses.filter(c => 

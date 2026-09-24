@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchCommunities, joinCommunity, leaveCommunity, checkCommunityMembership } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { Users, Search, Plus } from 'lucide-react';
+import * as localDb from '../lib/localDatabase';
+import { fetchCommunities, joinCommunity, leaveCommunity, checkCommunityMembership } from '../lib/database';
+import { Users, Search } from 'lucide-react';
 
 const categories = ['Todas', 'Juventude', 'Formação', 'Comunicação', 'Oração', 'Família', 'Liturgia', 'Música'];
 
@@ -19,21 +20,28 @@ export default function CommunitiesPage() {
   }, []);
 
   const loadCommunities = async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
+    if (isSupabaseConfigured) {
+      const data = await fetchCommunities(50);
+      setCommunities(data);
 
-    const data = await fetchCommunities(50);
-    setCommunities(data);
+      if (user) {
+        const checks = await Promise.all(
+          data.map(c => checkCommunityMembership(c.id, user.id))
+        );
+        const memberOf = new Set(data.filter((_, i) => checks[i]).map(c => c.id));
+        setMemberships(memberOf);
+      }
+    } else {
+      // Modo local
+      const data = localDb.getCommunities();
+      setCommunities(data);
 
-    // Verifica memberships
-    if (user) {
-      const checks = await Promise.all(
-        data.map(c => checkCommunityMembership(c.id, user.id))
-      );
-      const memberOf = new Set(data.filter((_, i) => checks[i]).map(c => c.id));
-      setMemberships(memberOf);
+      if (user) {
+        const memberOf = new Set(
+          data.filter(c => localDb.isMember(c.id, user.id)).map(c => c.id)
+        );
+        setMemberships(memberOf);
+      }
     }
 
     setLoading(false);
@@ -42,16 +50,37 @@ export default function CommunitiesPage() {
   const handleJoin = async (communityId: string) => {
     if (!user) return;
 
-    if (memberships.has(communityId)) {
-      await leaveCommunity(communityId, user.id);
-      setMemberships(prev => {
-        const next = new Set(prev);
-        next.delete(communityId);
-        return next;
-      });
+    if (isSupabaseConfigured) {
+      if (memberships.has(communityId)) {
+        await leaveCommunity(communityId, user.id);
+        setMemberships(prev => {
+          const next = new Set(prev);
+          next.delete(communityId);
+          return next;
+        });
+      } else {
+        await joinCommunity(communityId, user.id);
+        setMemberships(prev => new Set(prev).add(communityId));
+      }
     } else {
-      await joinCommunity(communityId, user.id);
-      setMemberships(prev => new Set(prev).add(communityId));
+      // Modo local
+      if (memberships.has(communityId)) {
+        localDb.leaveCommunity(communityId, user.id);
+        setMemberships(prev => {
+          const next = new Set(prev);
+          next.delete(communityId);
+          return next;
+        });
+        // Atualiza lista
+        const data = localDb.getCommunities();
+        setCommunities(data);
+      } else {
+        localDb.joinCommunity(communityId, user.id);
+        setMemberships(prev => new Set(prev).add(communityId));
+        // Atualiza lista
+        const data = localDb.getCommunities();
+        setCommunities(data);
+      }
     }
   };
 
@@ -113,7 +142,6 @@ export default function CommunitiesPage() {
         <div className="bg-white rounded-2xl border border-surface-200/60 p-12 text-center">
           <Users size={40} className="mx-auto mb-3 text-surface-300" />
           <p className="text-surface-500 text-sm">Nenhuma comunidade encontrada</p>
-          <p className="text-surface-400 text-xs mt-1">Seja o primeiro a criar uma!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

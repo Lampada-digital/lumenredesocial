@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import * as localDb from '../lib/localDatabase';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -25,16 +26,15 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mapeia perfil do Supabase para User da aplicação
 function mapProfileToUser(profile: any): User {
   if (!profile) return null as any;
   return {
     id: profile.id,
-    name: profile.full_name,
+    name: profile.full_name || profile.name,
     username: profile.username,
-    email: '', // Não expomos email diretamente
-    avatar: profile.avatar_url || '',
-    cover: profile.cover_url || '',
+    email: profile.email || '',
+    avatar: profile.avatar_url || profile.avatar || '',
+    cover: profile.cover_url || profile.cover || '',
     bio: profile.bio || '',
     city: profile.city || '',
     parish: profile.parish || '',
@@ -57,20 +57,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Inicializa dados locais
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localDb.initializeData();
+    }
+  }, []);
+
   // Carrega sessão ao iniciar
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      setIsLoading(false);
-      return;
-    }
-
     const loadSession = async () => {
       try {
-        if (!supabase) return;
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          await fetchAndSetProfile(session.user.id);
+        if (isSupabaseConfigured && supabase) {
+          // Modo Supabase
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            await fetchAndSetProfileSupabase(session.user.id);
+          }
+        } else {
+          // Modo Local
+          const userId = localDb.getSession();
+          if (userId) {
+            const userData = localDb.getUserById(userId);
+            if (userData) {
+              setProfile(userData);
+              setUser(mapProfileToUser(userData));
+            } else {
+              localDb.clearSession();
+            }
+          }
         }
       } catch (error) {
         console.error('Erro ao carregar sessão:', error);
@@ -81,22 +96,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     loadSession();
 
-    // Listener para mudanças de autenticação
-    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetchAndSetProfile(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setProfile(null);
-      }
-    });
+    // Listener para mudanças de autenticação (Supabase)
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await fetchAndSetProfileSupabase(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+        }
+      });
 
-    return () => {
-      subscription?.unsubscribe();
-    };
+      return () => {
+        subscription?.unsubscribe();
+      };
+    }
   }, []);
 
-  const fetchAndSetProfile = async (userId: string) => {
+  const fetchAndSetProfileSupabase = async (userId: string) => {
     if (!supabase) return;
 
     const { data, error } = await supabase
@@ -115,83 +132,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = useCallback(async (email: string, password: string) => {
-    if (!isSupabaseConfigured || !supabase) {
-      return { success: false, error: 'Supabase não configurado' };
-    }
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        await fetchAndSetProfile(data.user.id);
+      if (isSupabaseConfigured && supabase) {
+        // Modo Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) return { success: false, error: error.message };
+        if (data.user) {
+          await fetchAndSetProfileSupabase(data.user.id);
+          return { success: true };
+        }
+        return { success: false, error: 'Erro ao fazer login' };
+      } else {
+        // Modo Local
+        const userData = localDb.authenticateUser(email, password);
+        if (!userData) {
+          return { success: false, error: 'Email ou senha incorretos' };
+        }
+        localDb.saveSession(userData.id);
+        setProfile(userData);
+        setUser(mapProfileToUser(userData));
         return { success: true };
       }
-
-      return { success: false, error: 'Erro ao fazer login' };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro desconhecido' };
     }
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
-    if (!isSupabaseConfigured || !supabase) {
-      return { success: false, error: 'Supabase não configurado' };
-    }
-
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.full_name,
-            username: data.username,
+      if (isSupabaseConfigured && supabase) {
+        // Modo Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              full_name: data.full_name,
+              username: data.username,
+            },
           },
-        },
-      });
+        });
 
-      if (authError) {
-        return { success: false, error: authError.message };
-      }
+        if (authError) return { success: false, error: authError.message };
 
-      if (authData.user) {
-        // Atualiza perfil com dados adicionais
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: data.full_name,
-            username: data.username,
-            city: data.city || null,
-            parish: data.parish || null,
-          })
-          .eq('id', authData.user.id);
+        if (authData.user) {
+          await supabase
+            .from('profiles')
+            .update({
+              full_name: data.full_name,
+              username: data.username,
+              city: data.city || null,
+              parish: data.parish || null,
+            })
+            .eq('id', authData.user.id);
 
-        if (profileError) {
-          console.error('Erro ao atualizar perfil:', profileError);
+          await fetchAndSetProfileSupabase(authData.user.id);
+          return { success: true };
         }
 
-        await fetchAndSetProfile(authData.user.id);
+        return { success: false, error: 'Erro ao criar conta' };
+      } else {
+        // Modo Local
+        const result = localDb.createUser({
+          email: data.email,
+          password: data.password,
+          username: data.username,
+          full_name: data.full_name,
+          city: data.city,
+          parish: data.parish,
+        });
+
+        if ('error' in result) {
+          return { success: false, error: result.error };
+        }
+
+        localDb.saveSession(result.id);
+        setProfile(result);
+        setUser(mapProfileToUser(result));
         return { success: true };
       }
-
-      return { success: false, error: 'Erro ao criar conta' };
     } catch (error: any) {
       return { success: false, error: error.message || 'Erro desconhecido' };
     }
   }, []);
 
   const logout = useCallback(async () => {
-    if (!isSupabaseConfigured || !supabase) return;
-
     try {
-      await supabase.auth.signOut();
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      } else {
+        localDb.clearSession();
+      }
       setUser(null);
       setProfile(null);
     } catch (error) {
@@ -200,20 +231,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<any>) => {
-    if (!isSupabaseConfigured || !supabase || !user) return;
+    if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(data)
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Erro ao atualizar perfil:', error);
-        return;
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from('profiles').update(data).eq('id', user.id);
+        await fetchAndSetProfileSupabase(user.id);
+      } else {
+        localDb.updateUser(user.id, data);
+        const updated = localDb.getUserById(user.id);
+        if (updated) {
+          setProfile(updated);
+          setUser(mapProfileToUser(updated));
+        }
       }
-
-      await fetchAndSetProfile(user.id);
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
     }
@@ -221,7 +252,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    await fetchAndSetProfile(user.id);
+    if (isSupabaseConfigured && supabase) {
+      await fetchAndSetProfileSupabase(user.id);
+    } else {
+      const updated = localDb.getUserById(user.id);
+      if (updated) {
+        setProfile(updated);
+        setUser(mapProfileToUser(updated));
+      }
+    }
   }, [user]);
 
   return (

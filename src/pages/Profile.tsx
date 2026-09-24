@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchProfile, searchProfiles } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { MapPin, Church, Calendar, Edit3, Camera, Users, Cross, FileText } from 'lucide-react';
+import * as localDb from '../lib/localDatabase';
+import { MapPin, Church, Calendar, Edit3, Users, Cross, FileText } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useAuth();
@@ -59,7 +59,7 @@ export default function ProfilePage() {
           <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-14 sm:-mt-16">
             <div className="relative">
               <img
-                src={profile.avatar_url || ''}
+                src={profile.avatar_url || profile.avatar || ''}
                 alt={profile.full_name}
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-4 border-white shadow-xl bg-surface-100"
               />
