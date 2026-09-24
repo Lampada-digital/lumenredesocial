@@ -430,6 +430,114 @@ export function enrollInCourse(courseId: string, userId: string): void {
 }
 
 // ============================================
+// FILE UPLOAD (Base64)
+// ============================================
+
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+}
+
+export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
+  try {
+    const base64 = await fileToBase64(file);
+    updateUser(userId, { avatar_url: base64 });
+    return base64;
+  } catch (error) {
+    console.error('Erro ao fazer upload do avatar:', error);
+    return null;
+  }
+}
+
+export async function uploadCover(userId: string, file: File): Promise<string | null> {
+  try {
+    const base64 = await fileToBase64(file);
+    updateUser(userId, { cover_url: base64 });
+    return base64;
+  } catch (error) {
+    console.error('Erro ao fazer upload da capa:', error);
+    return null;
+  }
+}
+
+// ============================================
+// CREATE COMMUNITY
+// ============================================
+
+export function createCommunity(data: {
+  name: string;
+  description: string;
+  type: string;
+  category: string;
+  created_by: string;
+  image_url?: string;
+  cover_url?: string;
+}): LocalCommunity {
+  const communities = getStore<LocalCommunity>(DB_KEYS.COMMUNITIES);
+  
+  const newCommunity: LocalCommunity = {
+    id: generateId(),
+    name: data.name,
+    description: data.description,
+    image_url: data.image_url || '',
+    cover_url: data.cover_url || '',
+    type: data.type,
+    category: data.category,
+    members_count: 1, // Criador já é membro
+    created_by: data.created_by,
+    created_at: new Date().toISOString(),
+  };
+  
+  communities.unshift(newCommunity);
+  setStore(DB_KEYS.COMMUNITIES, communities);
+  
+  // Adiciona criador como membro
+  joinCommunity(newCommunity.id, data.created_by);
+  
+  return newCommunity;
+}
+
+// ============================================
+// CREATE EVENT
+// ============================================
+
+export function createEvent(data: {
+  title: string;
+  description: string;
+  type: string;
+  event_date: string;
+  event_time: string;
+  location: string;
+  organizer_id: string;
+  image_url?: string;
+}): LocalEvent {
+  const events = getStore<LocalEvent>(DB_KEYS.EVENTS);
+  
+  const newEvent: LocalEvent = {
+    id: generateId(),
+    title: data.title,
+    description: data.description,
+    type: data.type,
+    event_date: data.event_date,
+    event_time: data.event_time,
+    location: data.location,
+    image_url: data.image_url || '',
+    organizer_id: data.organizer_id,
+    participants_count: 0,
+    created_at: new Date().toISOString(),
+  };
+  
+  events.unshift(newEvent);
+  setStore(DB_KEYS.EVENTS, events);
+  
+  return newEvent;
+}
+
+// ============================================
 // INITIAL DATA
 // ============================================
 

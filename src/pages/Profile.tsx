@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
-import { MapPin, Church, Calendar, Edit3, Users, Cross, FileText } from 'lucide-react';
+import { uploadFile } from '../lib/database';
+import { MapPin, Church, Calendar, Edit3, Users, Cross, FileText, Camera } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useAuth();
@@ -32,9 +33,46 @@ export default function ProfilePage() {
     );
   }
 
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
   const handleSave = async () => {
     await updateProfile(editData);
     setEditing(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (isSupabaseConfigured) {
+      const url = await uploadFile(file, 'avatars', `${user.id}/avatar-${Date.now()}`);
+      if (url) {
+        await updateProfile({ avatar_url: url });
+      }
+    } else {
+      const url = await localDb.uploadAvatar(user.id, file);
+      if (url) {
+        await updateProfile({ avatar_url: url });
+      }
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (isSupabaseConfigured) {
+      const url = await uploadFile(file, 'covers', `${user.id}/cover-${Date.now()}`);
+      if (url) {
+        await updateProfile({ cover_url: url });
+      }
+    } else {
+      const url = await localDb.uploadCover(user.id, file);
+      if (url) {
+        await updateProfile({ cover_url: url });
+      }
+    }
   };
 
   const tabs = [
@@ -48,10 +86,26 @@ export default function ProfilePage() {
       <div className="bg-white rounded-2xl border border-surface-200/60 shadow-sm overflow-hidden">
         {/* Cover */}
         <div className="relative h-52 sm:h-72 bg-gradient-to-br from-surface-900 via-primary-900 to-surface-900 overflow-hidden">
+          {profile.cover_url && (
+            <img src={profile.cover_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
+          )}
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-10 left-10 w-64 h-64 border border-white/10 rounded-full" />
             <div className="absolute bottom-0 right-0 w-96 h-96 border border-white/5 rounded-full" />
           </div>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleCoverUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => coverInputRef.current?.click()}
+            className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-sm rounded-lg text-white hover:bg-black/50 transition-colors"
+          >
+            <Camera size={16} />
+          </button>
         </div>
 
         {/* Profile Info */}
@@ -63,6 +117,19 @@ export default function ProfilePage() {
                 alt={profile.full_name}
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-4 border-white shadow-xl bg-surface-100"
               />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="absolute bottom-2 right-2 p-1.5 bg-surface-900 rounded-lg text-white hover:bg-surface-800 transition-colors"
+              >
+                <Camera size={10} />
+              </button>
             </div>
             <div className="flex-1 sm:pb-2">
               {editing ? (

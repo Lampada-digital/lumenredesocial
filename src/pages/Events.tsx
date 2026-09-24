@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
 import { fetchEvents, joinEvent } from '../lib/database';
-import { Calendar, MapPin, Clock, Search } from 'lucide-react';
+import { Calendar, MapPin, Clock, Search, Plus, X } from 'lucide-react';
 
 const eventTypes = [
   { id: 'all', label: 'Todos' },
@@ -20,6 +20,15 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    type: 'mass',
+    event_date: '',
+    event_time: '',
+    location: '',
+  });
 
   useEffect(() => {
     loadEvents();
@@ -48,6 +57,31 @@ export default function EventsPage() {
     }
   };
 
+  const handleCreateEvent = async () => {
+    if (!user || !newEvent.title.trim() || !newEvent.description.trim() || !newEvent.event_date || !newEvent.event_time || !newEvent.location.trim()) return;
+
+    if (isSupabaseConfigured) {
+      // TODO: Implementar criação via Supabase
+      console.log('Criar evento via Supabase');
+    } else {
+      // Modo local
+      const event = localDb.createEvent({
+        title: newEvent.title,
+        description: newEvent.description,
+        type: newEvent.type,
+        event_date: newEvent.event_date,
+        event_time: newEvent.event_time,
+        location: newEvent.location,
+        organizer_id: user.id,
+      });
+      setEvents([event, ...events]);
+    }
+
+    setNewEvent({ title: '', description: '', type: 'mass', event_date: '', event_time: '', location: '' });
+    setShowCreateModal(false);
+    loadEvents();
+  };
+
   const filtered = events.filter(e => {
     const matchesType = selectedType === 'all' || e.type === selectedType;
     const matchesSearch = e.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -72,6 +106,13 @@ export default function EventsPage() {
           <h1 className="text-3xl font-serif font-semibold text-surface-900 tracking-tight">Eventos</h1>
           <p className="text-surface-500 text-sm mt-1.5">Missas, retiros, formações e celebrações</p>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-surface-900 text-white rounded-xl text-xs font-semibold hover:bg-surface-800 transition-colors shadow-sm"
+        >
+          <Plus size={14} />
+          Criar evento
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -149,6 +190,125 @@ export default function EventsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Criar Evento */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-serif font-semibold text-surface-900">Criar Evento</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Título do Evento *
+                </label>
+                <input
+                  type="text"
+                  value={newEvent.title}
+                  onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
+                  placeholder="Ex: Missa Dominical"
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Descrição *
+                </label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Descreva o evento..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Tipo de Evento
+                </label>
+                <select
+                  value={newEvent.type}
+                  onChange={e => setNewEvent({ ...newEvent, type: e.target.value })}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                >
+                  <option value="mass">Missa</option>
+                  <option value="adoration">Adoração</option>
+                  <option value="retreat">Retiro</option>
+                  <option value="catechesis">Catequese</option>
+                  <option value="formation">Formação</option>
+                  <option value="novena">Novena</option>
+                  <option value="other">Outro</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Data *
+                  </label>
+                  <input
+                    type="date"
+                    value={newEvent.event_date}
+                    onChange={e => setNewEvent({ ...newEvent, event_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Horário *
+                  </label>
+                  <input
+                    type="time"
+                    value={newEvent.event_time}
+                    onChange={e => setNewEvent({ ...newEvent, event_time: e.target.value })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Local *
+                </label>
+                <input
+                  type="text"
+                  value={newEvent.location}
+                  onChange={e => setNewEvent({ ...newEvent, location: e.target.value })}
+                  placeholder="Ex: Paróquia Nossa Senhora Aparecida"
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-3 bg-surface-100 text-surface-700 rounded-xl text-sm font-semibold hover:bg-surface-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateEvent}
+                  disabled={!newEvent.title.trim() || !newEvent.description.trim() || !newEvent.event_date || !newEvent.event_time || !newEvent.location.trim()}
+                  className="flex-1 px-4 py-3 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Criar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

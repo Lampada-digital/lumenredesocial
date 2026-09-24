@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
 import { fetchCommunities, joinCommunity, leaveCommunity, checkCommunityMembership } from '../lib/database';
-import { Users, Search } from 'lucide-react';
+import { Users, Search, Plus, X } from 'lucide-react';
 
 const categories = ['Todas', 'Juventude', 'Formação', 'Comunicação', 'Oração', 'Família', 'Liturgia', 'Música'];
 
@@ -14,6 +14,13 @@ export default function CommunitiesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCommunity, setNewCommunity] = useState({
+    name: '',
+    description: '',
+    type: 'public',
+    category: 'Juventude',
+  });
 
   useEffect(() => {
     loadCommunities();
@@ -84,6 +91,30 @@ export default function CommunitiesPage() {
     }
   };
 
+  const handleCreateCommunity = async () => {
+    if (!user || !newCommunity.name.trim() || !newCommunity.description.trim()) return;
+
+    if (isSupabaseConfigured) {
+      // TODO: Implementar criação via Supabase
+      console.log('Criar comunidade via Supabase');
+    } else {
+      // Modo local
+      const community = localDb.createCommunity({
+        name: newCommunity.name,
+        description: newCommunity.description,
+        type: newCommunity.type,
+        category: newCommunity.category,
+        created_by: user.id,
+      });
+      setCommunities([community, ...communities]);
+      setMemberships(prev => new Set(prev).add(community.id));
+    }
+
+    setNewCommunity({ name: '', description: '', type: 'public', category: 'Juventude' });
+    setShowCreateModal(false);
+    loadCommunities();
+  };
+
   const filtered = communities.filter(c => {
     const matchesCategory = selectedCategory === 'Todas' || c.category === selectedCategory;
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -108,6 +139,13 @@ export default function CommunitiesPage() {
           <h1 className="text-3xl font-serif font-semibold text-surface-900 tracking-tight">Comunidades</h1>
           <p className="text-surface-500 text-sm mt-1.5">Encontre e participe de comunidades de fé</p>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-surface-900 text-white rounded-xl text-xs font-semibold hover:bg-surface-800 transition-colors shadow-sm"
+        >
+          <Plus size={14} />
+          Criar comunidade
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -190,6 +228,103 @@ export default function CommunitiesPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Criar Comunidade */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-serif font-semibold text-surface-900">Criar Comunidade</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Nome da Comunidade *
+                </label>
+                <input
+                  type="text"
+                  value={newCommunity.name}
+                  onChange={e => setNewCommunity({ ...newCommunity, name: e.target.value })}
+                  placeholder="Ex: Jovens Católicos SP"
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Descrição *
+                </label>
+                <textarea
+                  value={newCommunity.description}
+                  onChange={e => setNewCommunity({ ...newCommunity, description: e.target.value })}
+                  placeholder="Descreva o propósito da comunidade..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Tipo
+                  </label>
+                  <select
+                    value={newCommunity.type}
+                    onChange={e => setNewCommunity({ ...newCommunity, type: e.target.value })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  >
+                    <option value="public">Pública</option>
+                    <option value="private">Privada</option>
+                    <option value="institutional">Institucional</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                    Categoria
+                  </label>
+                  <select
+                    value={newCommunity.category}
+                    onChange={e => setNewCommunity({ ...newCommunity, category: e.target.value })}
+                    className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                  >
+                    <option value="Juventude">Juventude</option>
+                    <option value="Formação">Formação</option>
+                    <option value="Comunicação">Comunicação</option>
+                    <option value="Oração">Oração</option>
+                    <option value="Família">Família</option>
+                    <option value="Liturgia">Liturgia</option>
+                    <option value="Música">Música</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-3 bg-surface-100 text-surface-700 rounded-xl text-sm font-semibold hover:bg-surface-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateCommunity}
+                  disabled={!newCommunity.name.trim() || !newCommunity.description.trim()}
+                  className="flex-1 px-4 py-3 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Criar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
