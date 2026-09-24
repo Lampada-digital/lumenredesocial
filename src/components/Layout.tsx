@@ -45,7 +45,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-surface-50 bg-mesh">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-surface-200/60">
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-surface-200/60 shadow-premium">
         <div className="flex items-center justify-between h-16 px-4 lg:px-8">
           {/* Left: Logo + Menu */}
           <div className="flex items-center gap-4">
@@ -58,14 +58,14 @@ export default function Layout() {
             </button>
             <Link to="/" className="flex items-center gap-2.5 group">
               <div className="relative">
-                <div className="w-9 h-9 bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20 group-hover:shadow-primary-500/40 transition-shadow">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-white">
+                <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-premium group-hover:shadow-premium-lg transition-all group-hover:scale-105">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
                     <path d="M12 2L12 22M7 7L17 7M5 12L19 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                   </svg>
                 </div>
               </div>
               <div className="hidden sm:block">
-                <span className="text-lg font-serif font-semibold tracking-tight text-surface-900">
+                <span className="text-xl font-serif font-bold tracking-tight text-gradient">
                   Lumen
                 </span>
               </div>
