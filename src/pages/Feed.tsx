@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
 import { fetchPosts, createPost, togglePostLike } from '../lib/database';
+import EmojiPicker from '../components/EmojiPicker';
 import { Heart, MessageCircle, Share2, Globe, Lock, Cross, ImageIcon, Video, Smile, X } from 'lucide-react';
 
 export default function FeedPage() {
@@ -12,9 +13,14 @@ export default function FeedPage() {
   const [newPostContent, setNewPostContent] = useState('');
   const [creating, setCreating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const videoInputRef = React.useRef<HTMLInputElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [newComments, setNewComments] = useState<{ [key: string]: string }>({});
+  const [showShareModal, setShowShareModal] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState('');
 
   useEffect(() => {
     loadPosts();
@@ -41,18 +47,26 @@ export default function FeedPage() {
       const post = await createPost({
         author_id: user.id,
         content: newPostContent,
-        type: selectedImage ? 'image' : 'text',
+        type: selectedVideo ? 'video' : selectedImage ? 'image' : 'text',
         privacy: 'public',
       });
       if (post) {
         setPosts([post, ...posts]);
         setNewPostContent('');
         setSelectedImage(null);
+        setSelectedVideo(null);
       }
     } else {
       // Modo local
       let post;
-      if (selectedImage) {
+      if (selectedVideo) {
+        post = localDb.createPostWithVideo({
+          author_id: user.id,
+          content: newPostContent,
+          video_url: selectedVideo,
+          privacy: 'public',
+        });
+      } else if (selectedImage) {
         post = localDb.createPostWithImage({
           author_id: user.id,
           content: newPostContent,
@@ -75,6 +89,7 @@ export default function FeedPage() {
       setPosts([postWithAuthor, ...posts]);
       setNewPostContent('');
       setSelectedImage(null);
+      setSelectedVideo(null);
     }
     
     setCreating(false);
@@ -120,6 +135,45 @@ export default function FeedPage() {
     }));
 
     setNewComments({ ...newComments, [postId]: '' });
+  };
+
+  const handleVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Verifica se é um vídeo
+    if (!file.type.startsWith('video/')) {
+      alert('Por favor, selecione um arquivo de vídeo');
+      return;
+    }
+
+    // Limita o tamanho do vídeo a 10MB para localStorage
+    if (file.size > 10 * 1024 * 1024) {
+      alert('O vídeo deve ter no máximo 10MB');
+      return;
+    }
+
+    const base64 = await localDb.fileToBase64(file);
+    setSelectedVideo(base64);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewPostContent(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleShare = (postId: string) => {
+    if (!user) return;
+
+    const sharedPost = localDb.sharePost(postId, user.id, shareMessage || undefined);
+    const sharedPostWithAuthor = {
+      ...sharedPost,
+      author: localDb.getUserById(user.id),
+    };
+
+    setPosts([sharedPostWithAuthor, ...posts]);
+    setShowShareModal(null);
+    setShareMessage('');
   };
 
   const handleLike = async (postId: string) => {
@@ -172,7 +226,7 @@ export default function FeedPage() {
       <div className="bg-white rounded-2xl border border-surface-200/60 shadow-sm p-5">
         <div className="flex items-start gap-3">
           <img src={user?.avatar || ''} alt="" className="w-10 h-10 rounded-full object-cover ring-1 ring-surface-100 bg-surface-100" />
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <textarea
               value={newPostContent}
               onChange={e => setNewPostContent(e.target.value)}
@@ -193,6 +247,19 @@ export default function FeedPage() {
                 </button>
               </div>
             )}
+
+            {/* Video Preview */}
+            {selectedVideo && (
+              <div className="relative mt-3 mb-3">
+                <video src={selectedVideo} controls className="w-full max-h-96 rounded-xl" />
+                <button
+                  onClick={() => setSelectedVideo(null)}
+                  className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             
             <div className="flex items-center justify-between pt-3 border-t border-surface-100">
               <div className="flex items-center gap-0.5">
@@ -203,6 +270,13 @@ export default function FeedPage() {
                   onChange={handleImageSelect}
                   className="hidden"
                 />
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                />
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 rounded-lg transition-colors text-surface-400 hover:text-green-600 hover:bg-green-50"
@@ -210,12 +284,28 @@ export default function FeedPage() {
                 >
                   <ImageIcon size={16} />
                 </button>
-                <button className="p-2 rounded-lg transition-colors text-surface-400 hover:text-blue-600 hover:bg-blue-50" title="Vídeo">
+                <button
+                  onClick={() => videoInputRef.current?.click()}
+                  className="p-2 rounded-lg transition-colors text-surface-400 hover:text-blue-600 hover:bg-blue-50"
+                  title="Vídeo"
+                >
                   <Video size={16} />
                 </button>
-                <button className="p-2 rounded-lg transition-colors text-surface-400 hover:text-gold-600 hover:bg-gold-50" title="Emoji">
-                  <Smile size={16} />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="p-2 rounded-lg transition-colors text-surface-400 hover:text-gold-600 hover:bg-gold-50"
+                    title="Emoji"
+                  >
+                    <Smile size={16} />
+                  </button>
+                  {showEmojiPicker && (
+                    <EmojiPicker
+                      onSelect={handleEmojiSelect}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleCreatePost}
@@ -266,7 +356,11 @@ export default function FeedPage() {
               <p className="text-surface-700 text-[14px] leading-[1.65] whitespace-pre-line">{post.content}</p>
               {post.media_urls && post.media_urls.length > 0 && (
                 <div className="mt-3">
-                  <img src={post.media_urls[0]} alt="" className="w-full rounded-xl" />
+                  {post.type === 'video' ? (
+                    <video src={post.media_urls[0]} controls className="w-full rounded-xl" />
+                  ) : (
+                    <img src={post.media_urls[0]} alt="" className="w-full rounded-xl" />
+                  )}
                 </div>
               )}
             </div>
@@ -289,7 +383,10 @@ export default function FeedPage() {
                   <MessageCircle size={16} />
                   <span className="text-xs font-semibold">{post.comments_count}</span>
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-surface-500 hover:bg-surface-100 hover:text-primary-600 transition-all">
+                <button
+                  onClick={() => setShowShareModal(post.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-surface-500 hover:bg-surface-100 hover:text-primary-600 transition-all"
+                >
                   <Share2 size={16} />
                   <span className="text-xs font-semibold">{post.shares_count}</span>
                 </button>
@@ -347,6 +444,59 @@ export default function FeedPage() {
             )}
           </article>
         ))
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-serif font-semibold text-surface-900">Compartilhar Publicação</h2>
+              <button
+                onClick={() => {
+                  setShowShareModal(null);
+                  setShareMessage('');
+                }}
+                className="p-2 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-surface-700 mb-1.5 uppercase tracking-wide">
+                  Adicione uma mensagem (opcional)
+                </label>
+                <textarea
+                  value={shareMessage}
+                  onChange={e => setShareMessage(e.target.value)}
+                  placeholder="O que você quer dizer sobre esta publicação?"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowShareModal(null);
+                    setShareMessage('');
+                  }}
+                  className="flex-1 px-4 py-3 bg-surface-100 text-surface-700 rounded-xl text-sm font-semibold hover:bg-surface-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleShare(showShareModal)}
+                  className="flex-1 px-4 py-3 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors"
+                >
+                  Compartilhar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
