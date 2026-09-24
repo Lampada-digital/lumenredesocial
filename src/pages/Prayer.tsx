@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { posts } from '../data/mockData';
-import { Heart, Send, Search, Filter, Clock, Globe, Lock, Users, Cross, Sparkles } from 'lucide-react';
+import { Heart, Cross, Sparkles } from 'lucide-react';
 
 const prayerCategories = [
-  { id: 'all', label: 'Todos', emoji: '🙏' },
-  { id: 'saude', label: 'Saúde', emoji: '💚' },
-  { id: 'familia', label: 'Família', emoji: '👨‍👩‍👧' },
-  { id: 'trabalho', label: 'Trabalho', emoji: '💼' },
-  { id: 'espiritual', label: 'Espiritual', emoji: '✨' },
-  { id: 'gratidao', label: 'Gratidão', emoji: '🙌' },
-  { id: 'falecimento', label: 'Falecimento', emoji: '🕊️' },
+  { id: 'all', label: 'Todos' },
+  { id: 'saude', label: 'Saúde' },
+  { id: 'familia', label: 'Família' },
+  { id: 'trabalho', label: 'Trabalho' },
+  { id: 'espiritual', label: 'Espiritual' },
+  { id: 'gratidao', label: 'Gratidão' },
 ];
 
 const prayerPosts = posts.filter(p => p.type === 'prayer' || p.prayerRequest);
@@ -29,51 +28,54 @@ export default function PrayerPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20 lg:pb-4">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
-      <div className="text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-gold-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-          <Cross size={28} className="text-primary-600" />
+      <div className="text-center py-4">
+        <div className="w-14 h-14 bg-surface-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-surface-900/20">
+          <Cross size={24} className="text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-surface-800">Pedido de Oração</h1>
-        <p className="text-surface-500 text-sm mt-1">"Onde dois ou três estiverem reunidos em meu nome, aí estou eu no meio deles." — Mt 18,20</p>
+        <h1 className="text-3xl font-serif font-semibold text-surface-900 tracking-tight">Pedido de Oração</h1>
+        <p className="text-surface-500 text-sm mt-2 max-w-md mx-auto leading-relaxed italic font-serif">
+          "Onde dois ou três estiverem reunidos em meu nome, aí estou eu no meio deles."
+        </p>
+        <p className="text-surface-400 text-xs mt-1">— Mateus 18,20</p>
       </div>
 
       {/* Create Request */}
-      <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4">
+      <div className="bg-white rounded-2xl border border-surface-200/60 shadow-sm p-5">
         {!showCreateForm ? (
           <button
             onClick={() => setShowCreateForm(true)}
-            className="w-full py-3 border-2 border-dashed border-surface-200 rounded-xl text-sm text-surface-500 hover:border-primary-300 hover:text-primary-600 transition-colors"
+            className="w-full py-3.5 border border-dashed border-surface-300 rounded-xl text-sm text-surface-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50/30 transition-all font-medium"
           >
-            ✍️ Fazer um pedido de oração
+            Fazer um pedido de oração
           </button>
         ) : (
           <div className="space-y-3">
             <input
               type="text"
               placeholder="Título do pedido..."
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-100 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-200 transition-all"
             />
             <textarea
               placeholder="Descreva seu pedido de oração..."
               rows={3}
-              className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 resize-none"
+              className="w-full px-4 py-3 bg-surface-50 border border-surface-100 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-200 transition-all resize-none"
             />
             <div className="flex items-center justify-between">
-              <select className="px-3 py-2 bg-surface-50 border border-surface-200 rounded-lg text-sm text-surface-600">
+              <select className="px-3 py-2 bg-surface-50 border border-surface-100 rounded-lg text-xs text-surface-600 focus:outline-none">
                 {prayerCategories.filter(c => c.id !== 'all').map(c => (
-                  <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                  <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
               </select>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 text-sm text-surface-600 hover:bg-surface-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-xs text-surface-600 hover:bg-surface-100 rounded-lg transition-colors font-medium"
                 >
                   Cancelar
                 </button>
-                <button className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors">
+                <button className="px-4 py-2 bg-surface-900 text-white text-xs rounded-lg hover:bg-surface-800 transition-colors font-semibold">
                   Publicar
                 </button>
               </div>
@@ -83,18 +85,17 @@ export default function PrayerPage() {
       </div>
 
       {/* Categories */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
         {prayerCategories.map(cat => (
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
               selectedCategory === cat.id
-                ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-200'
-                : 'bg-white text-surface-600 hover:bg-surface-100 border border-surface-200'
+                ? 'bg-surface-900 text-white'
+                : 'bg-white text-surface-600 hover:bg-surface-100 border border-surface-200/80'
             }`}
           >
-            <span>{cat.emoji}</span>
             {cat.label}
           </button>
         ))}
@@ -105,39 +106,37 @@ export default function PrayerPage() {
         {prayerPosts.map(post => {
           const prayed = prayedRequests.has(post.id);
           return (
-            <div key={post.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 animate-fade-in">
-              <div className="flex items-start gap-3">
-                <img src={post.author.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+            <div key={post.id} className="bg-white rounded-2xl border border-surface-200/60 shadow-sm p-5 animate-fade-in-up">
+              <div className="flex items-start gap-3.5">
+                <img src={post.author.avatar} alt="" className="w-10 h-10 rounded-full object-cover ring-1 ring-surface-100" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-surface-800 text-sm">{post.author.name}</h4>
-                    <span className="text-xs text-surface-400">
+                    <h4 className="font-semibold text-surface-900 text-sm">{post.author.name}</h4>
+                    <span className="text-[11px] text-surface-400">
                       {new Date(post.createdAt).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
 
                   {post.prayerRequest && (
                     <>
-                      <h3 className="font-medium text-surface-800 mt-2">{post.prayerRequest.title}</h3>
-                      <p className="text-sm text-surface-600 mt-1">{post.prayerRequest.description}</p>
+                      <h3 className="font-medium text-surface-900 mt-2.5 text-[15px]">{post.prayerRequest.title}</h3>
+                      <p className="text-sm text-surface-600 mt-1.5 leading-relaxed">{post.prayerRequest.description}</p>
                     </>
                   )}
 
-                  <p className="text-sm text-surface-600 mt-2 whitespace-pre-line">{post.content}</p>
-
-                  <div className="flex items-center gap-4 mt-4 pt-3 border-t border-surface-100">
+                  <div className="flex items-center gap-4 mt-5 pt-4 border-t border-surface-100">
                     <button
                       onClick={() => handlePray(post.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                         prayed
-                          ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-200'
-                          : 'bg-surface-100 text-surface-600 hover:bg-primary-50 hover:text-primary-600'
+                          ? 'bg-primary-50 text-primary-700 border border-primary-200'
+                          : 'bg-surface-100 text-surface-600 hover:bg-surface-200 border border-transparent'
                       }`}
                     >
-                      <Heart size={16} fill={prayed ? 'currentColor' : 'none'} />
+                      <Heart size={14} fill={prayed ? 'currentColor' : 'none'} />
                       {prayed ? 'Estou rezando' : 'Vou rezar por você'}
                     </button>
-                    <span className="text-sm text-surface-500">
+                    <span className="text-xs text-surface-500 font-medium">
                       {post.prayerRequest?.prayersCount || 0} pessoas rezando
                     </span>
                   </div>
@@ -147,17 +146,23 @@ export default function PrayerPage() {
           );
         })}
 
-        {/* Additional prayer cards */}
-        <div className="bg-gradient-to-br from-primary-50 to-gold-50 rounded-2xl border border-primary-100 p-6 text-center">
-          <Sparkles size={32} className="mx-auto mb-3 text-primary-500" />
-          <h3 className="font-semibold text-surface-800 mb-2">Corrente de Oração</h3>
-          <p className="text-sm text-surface-600 mb-4">
-            Junte-se a milhares de fiéis em uma corrente de oração pela paz no mundo.
-          </p>
-          <button className="px-6 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm">
-            Participar da corrente
-          </button>
-          <p className="text-xs text-surface-500 mt-3">2.345 pessoas já estão rezando</p>
+        {/* Prayer Chain */}
+        <div className="bg-gradient-to-br from-surface-900 via-surface-800 to-primary-900 rounded-2xl p-8 text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-gold-400 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-64 h-64 bg-primary-400 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10">
+            <Sparkles size={28} className="mx-auto mb-4 text-gold-300" />
+            <h3 className="font-serif font-semibold text-white text-xl mb-2">Corrente de Oração</h3>
+            <p className="text-white/60 text-sm mb-6 max-w-sm mx-auto leading-relaxed">
+              Junte-se a milhares de fiéis em uma corrente de oração pela paz no mundo.
+            </p>
+            <button className="px-6 py-2.5 bg-white text-surface-900 rounded-xl text-xs font-semibold hover:bg-surface-100 transition-colors shadow-lg">
+              Participar da corrente
+            </button>
+            <p className="text-white/40 text-xs mt-4 font-medium">2.345 pessoas já estão rezando</p>
+          </div>
         </div>
       </div>
     </div>

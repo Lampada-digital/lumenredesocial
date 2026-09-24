@@ -4,14 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Search, Plus, Phone, Video, MoreVertical, Send,
   Image, Smile, Paperclip, Mic, Check, CheckCheck,
-  ArrowLeft, Users
+  ArrowLeft
 } from 'lucide-react';
 import type { Conversation, Message } from '../types';
 
 function MessageStatus({ status }: { status: string }) {
-  if (status === 'sent') return <Check size={12} className="text-surface-400" />;
-  if (status === 'delivered') return <CheckCheck size={12} className="text-surface-400" />;
-  if (status === 'read') return <CheckCheck size={12} className="text-primary-500" />;
+  if (status === 'sent') return <Check size={11} className="text-surface-400" />;
+  if (status === 'delivered') return <CheckCheck size={11} className="text-surface-400" />;
+  if (status === 'read') return <CheckCheck size={11} className="text-primary-500" />;
   return null;
 }
 
@@ -36,27 +36,27 @@ export default function MessagesPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 lg:pb-4">
-      <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden h-[calc(100vh-8rem)]">
+    <div className="max-w-6xl mx-auto">
+      <div className="bg-white rounded-2xl border border-surface-200/60 shadow-sm overflow-hidden h-[calc(100vh-7rem)]">
         <div className="flex h-full">
           {/* Conversations List */}
-          <div className={`w-full lg:w-80 border-r border-surface-200 flex flex-col ${selectedConv ? 'hidden lg:flex' : 'flex'}`}>
+          <div className={`w-full lg:w-80 border-r border-surface-100 flex flex-col ${selectedConv ? 'hidden lg:flex' : 'flex'}`}>
             {/* Header */}
             <div className="p-4 border-b border-surface-100">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-surface-800">Mensagens</h2>
+                <h2 className="text-lg font-serif font-semibold text-surface-900">Mensagens</h2>
                 <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                  <Plus size={18} className="text-surface-600" />
+                  <Plus size={16} className="text-surface-500" />
                 </button>
               </div>
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Buscar conversas..."
-                  className="w-full pl-9 pr-4 py-2 bg-surface-50 border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  placeholder="Buscar..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-transparent rounded-lg text-sm focus:outline-none focus:bg-white focus:border-surface-200 transition-all"
                 />
               </div>
             </div>
@@ -70,26 +70,26 @@ export default function MessagesPage() {
                   <button
                     key={conv.id}
                     onClick={() => setSelectedConv(conv)}
-                    className={`w-full flex items-center gap-3 p-4 hover:bg-surface-50 transition-colors border-b border-surface-50 ${
-                      isSelected ? 'bg-primary-50 border-l-2 border-l-primary-500' : ''
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-surface-50 transition-colors border-b border-surface-50 ${
+                      isSelected ? 'bg-primary-50/50 border-l-2 border-l-primary-500' : ''
                     }`}
                   >
-                    <div className="relative">
+                    <div className="relative flex-shrink-0">
                       <img
                         src={conv.isGroup ? conv.groupImage : otherUser.avatar}
                         alt=""
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-11 h-11 rounded-full object-cover"
                       />
                       {!conv.isGroup && otherUser.presence === 'online' && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full ring-2 ring-white" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-surface-800 truncate">
+                        <h4 className="text-sm font-semibold text-surface-900 truncate">
                           {conv.isGroup ? conv.groupName : otherUser.name}
                         </h4>
-                        <span className="text-xs text-surface-400">
+                        <span className="text-[10px] text-surface-400 font-medium">
                           {new Date(conv.lastMessage.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
@@ -98,7 +98,7 @@ export default function MessagesPage() {
                           {conv.lastMessage.senderId === user?.id && 'Você: '}{conv.lastMessage.content}
                         </p>
                         {conv.unread > 0 && (
-                          <span className="w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="w-4.5 h-4.5 bg-primary-600 text-white text-[10px] font-semibold rounded-full flex items-center justify-center flex-shrink-0 px-1">
                             {conv.unread}
                           </span>
                         )}
@@ -115,52 +115,52 @@ export default function MessagesPage() {
             {selectedConv ? (
               <>
                 {/* Chat Header */}
-                <div className="flex items-center justify-between p-4 border-b border-surface-100">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-100">
                   <div className="flex items-center gap-3">
                     <button onClick={() => setSelectedConv(null)} className="lg:hidden p-1 hover:bg-surface-100 rounded-lg">
-                      <ArrowLeft size={20} />
+                      <ArrowLeft size={18} />
                     </button>
                     <img
                       src={selectedConv.isGroup ? selectedConv.groupImage : selectedConv.participants[0].avatar}
                       alt=""
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-9 h-9 rounded-full object-cover"
                     />
                     <div>
-                      <h3 className="font-semibold text-surface-800 text-sm">
+                      <h3 className="font-semibold text-surface-900 text-sm">
                         {selectedConv.isGroup ? selectedConv.groupName : selectedConv.participants[0].name}
                       </h3>
-                      <p className="text-xs text-green-600">
+                      <p className="text-[11px] text-green-600 font-medium">
                         {selectedConv.isGroup ? `${selectedConv.participants.length} membros` : 'Online'}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                      <Phone size={18} className="text-surface-600" />
+                      <Phone size={16} className="text-surface-500" />
                     </button>
                     <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                      <Video size={18} className="text-surface-600" />
+                      <Video size={16} className="text-surface-500" />
                     </button>
                     <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                      <MoreVertical size={18} className="text-surface-600" />
+                      <MoreVertical size={16} className="text-surface-500" />
                     </button>
                   </div>
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-50/50">
+                <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-surface-50/30">
                   {mockMessages.map(msg => {
                     const isMe = msg.senderId === user?.id;
                     return (
                       <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+                        <div className={`max-w-[70%] px-4 py-2.5 ${
                           isMe
-                            ? 'bg-primary-600 text-white rounded-br-md'
-                            : 'bg-white text-surface-700 border border-surface-200 rounded-bl-md'
+                            ? 'bg-surface-900 text-white rounded-2xl rounded-br-md'
+                            : 'bg-white text-surface-700 border border-surface-200/80 rounded-2xl rounded-bl-md'
                         }`}>
-                          <p className="text-sm">{msg.content}</p>
+                          <p className="text-sm leading-relaxed">{msg.content}</p>
                           <div className={`flex items-center gap-1 mt-1 ${isMe ? 'justify-end' : ''}`}>
-                            <span className={`text-[10px] ${isMe ? 'text-primary-200' : 'text-surface-400'}`}>
+                            <span className={`text-[10px] ${isMe ? 'text-surface-400' : 'text-surface-400'}`}>
                               {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {isMe && <MessageStatus status={msg.status} />}
@@ -175,10 +175,10 @@ export default function MessagesPage() {
                 <div className="p-4 border-t border-surface-100 bg-white">
                   <div className="flex items-center gap-2">
                     <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                      <Paperclip size={18} className="text-surface-500" />
+                      <Paperclip size={16} className="text-surface-400" />
                     </button>
                     <button className="p-2 hover:bg-surface-100 rounded-lg transition-colors">
-                      <Image size={18} className="text-surface-500" />
+                      <Image size={16} className="text-surface-400" />
                     </button>
                     <div className="flex-1 relative">
                       <input
@@ -186,19 +186,19 @@ export default function MessagesPage() {
                         value={messageText}
                         onChange={e => setMessageText(e.target.value)}
                         placeholder="Digite uma mensagem..."
-                        className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                        className="w-full px-4 py-2.5 bg-surface-50 border border-surface-100 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-200 transition-all"
                       />
                       <button className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Smile size={18} className="text-surface-400" />
+                        <Smile size={16} className="text-surface-400" />
                       </button>
                     </div>
                     {messageText.trim() ? (
-                      <button className="p-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors">
-                        <Send size={18} />
+                      <button className="p-2.5 bg-surface-900 text-white rounded-xl hover:bg-surface-800 transition-colors">
+                        <Send size={16} />
                       </button>
                     ) : (
                       <button className="p-2.5 hover:bg-surface-100 rounded-xl transition-colors">
-                        <Mic size={18} className="text-surface-500" />
+                        <Mic size={16} className="text-surface-500" />
                       </button>
                     )}
                   </div>
@@ -207,11 +207,11 @@ export default function MessagesPage() {
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Send size={32} className="text-primary-500" />
+                  <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Send size={24} className="text-surface-400" />
                   </div>
-                  <h3 className="font-semibold text-surface-700 mb-1">Suas mensagens</h3>
-                  <p className="text-sm text-surface-500">Selecione uma conversa para começar</p>
+                  <h3 className="font-semibold text-surface-700 text-sm mb-1">Suas mensagens</h3>
+                  <p className="text-xs text-surface-400">Selecione uma conversa para começar</p>
                 </div>
               </div>
             )}
