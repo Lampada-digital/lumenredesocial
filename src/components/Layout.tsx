@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { notifications } from '../data/mockData';
 import {
   Home, Users, MessageCircle, Calendar, GraduationCap,
   Search, Bell, Menu, X, Compass, Settings,
-  LogOut, User, ChevronDown, Heart
+  LogOut, User, ChevronDown, Heart, Sun, Moon
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -88,6 +90,20 @@ export default function Layout() {
           <div className="flex items-center gap-1.5">
             <button className="md:hidden p-2.5 rounded-xl hover:bg-surface-100 transition-colors" aria-label="Buscar">
               <Search size={18} className="text-surface-600" />
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl hover:bg-surface-100 transition-all group"
+              aria-label="Alternar tema"
+              title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+            >
+              {theme === 'light' ? (
+                <Moon size={18} className="text-surface-600 group-hover:text-primary-600 transition-colors" />
+              ) : (
+                <Sun size={18} className="text-surface-600 group-hover:text-gold-500 transition-colors" />
+              )}
             </button>
 
             <div ref={notifRef} className="relative">

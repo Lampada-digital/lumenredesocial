@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import AuthPage from './pages/Auth';
 import FeedPage from './pages/Feed';
@@ -100,10 +101,12 @@ function SettingsPlaceholder() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
