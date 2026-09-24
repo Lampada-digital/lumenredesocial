@@ -253,7 +253,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-surface-900 text-white rounded-xl font-medium hover:bg-surface-800 transition-all shadow-lg shadow-surface-900/10 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full py-3 gradient-primary text-white rounded-xl font-semibold hover:opacity-90 transition-all shadow-premium disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
