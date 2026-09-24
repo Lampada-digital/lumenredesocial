@@ -538,6 +538,131 @@ export function createEvent(data: {
 }
 
 // ============================================
+// CREATE COURSE
+// ============================================
+
+export function createCourse(data: {
+  title: string;
+  description: string;
+  category: string;
+  modules_count: number;
+  lessons_count: number;
+  duration: string;
+  level: string;
+  instructor_id: string;
+  image_url?: string;
+}): LocalCourse {
+  const courses = getStore<LocalCourse>(DB_KEYS.COURSES);
+  
+  const newCourse: LocalCourse = {
+    id: generateId(),
+    title: data.title,
+    description: data.description,
+    image_url: data.image_url || '',
+    category: data.category,
+    modules_count: data.modules_count,
+    lessons_count: data.lessons_count,
+    duration: data.duration,
+    enrolled_count: 0,
+    level: data.level,
+    created_at: new Date().toISOString(),
+  };
+  
+  courses.unshift(newCourse);
+  setStore(DB_KEYS.COURSES, courses);
+  
+  return newCourse;
+}
+
+// ============================================
+// COMMENTS
+// ============================================
+
+export interface LocalComment {
+  id: string;
+  post_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author?: LocalUser;
+}
+
+export function createComment(postId: string, authorId: string, content: string): LocalComment {
+  const comments = getStore<LocalComment>('lumen_comments');
+  
+  const newComment: LocalComment = {
+    id: generateId(),
+    post_id: postId,
+    author_id: authorId,
+    content: content,
+    created_at: new Date().toISOString(),
+  };
+  
+  comments.unshift(newComment);
+  setStore('lumen_comments', comments);
+  
+  // Atualiza contador do post
+  const posts = getStore<LocalPost>(DB_KEYS.POSTS);
+  const post = posts.find(p => p.id === postId);
+  if (post) {
+    post.comments_count++;
+    setStore(DB_KEYS.POSTS, posts);
+  }
+  
+  return newComment;
+}
+
+export function getComments(postId: string): LocalComment[] {
+  const comments = getStore<LocalComment>('lumen_comments');
+  const users = getStore<LocalUser>(DB_KEYS.USERS);
+  
+  return comments
+    .filter(c => c.post_id === postId)
+    .map(comment => ({
+      ...comment,
+      author: users.find(u => u.id === comment.author_id),
+    }));
+}
+
+// ============================================
+// POST WITH IMAGE
+// ============================================
+
+export function createPostWithImage(postData: {
+  author_id: string;
+  content: string;
+  type?: string;
+  privacy?: string;
+  image_url?: string;
+}): LocalPost {
+  const posts = getStore<LocalPost>(DB_KEYS.POSTS);
+  
+  const newPost: LocalPost = {
+    id: generateId(),
+    author_id: postData.author_id,
+    content: postData.content,
+    type: postData.type || 'image',
+    privacy: postData.privacy || 'public',
+    media_urls: postData.image_url ? [postData.image_url] : [],
+    hashtags: [],
+    mentions: [],
+    likes_count: 0,
+    comments_count: 0,
+    shares_count: 0,
+    prayer_title: '',
+    prayer_description: '',
+    prayer_category: '',
+    prayers_count: 0,
+    created_at: new Date().toISOString(),
+  };
+  
+  posts.unshift(newPost);
+  setStore(DB_KEYS.POSTS, posts);
+  
+  return newPost;
+}
+
+// ============================================
 // INITIAL DATA
 // ============================================
 

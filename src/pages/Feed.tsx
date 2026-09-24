@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import * as localDb from '../lib/localDatabase';
 import { fetchPosts, createPost, togglePostLike } from '../lib/database';
-import { Heart, MessageCircle, Share2, Globe, Lock, Cross, ImageIcon, Video, Smile } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Globe, Lock, Cross, ImageIcon, Video, Smile, X } from 'lucide-react';
 
 export default function FeedPage() {
   const { user } = useAuth();
@@ -11,6 +11,10 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [newPostContent, setNewPostContent] = useState('');
   const [creating, setCreating] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [newComments, setNewComments] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadPosts();
@@ -37,30 +41,85 @@ export default function FeedPage() {
       const post = await createPost({
         author_id: user.id,
         content: newPostContent,
-        type: 'text',
+        type: selectedImage ? 'image' : 'text',
         privacy: 'public',
       });
       if (post) {
         setPosts([post, ...posts]);
         setNewPostContent('');
+        setSelectedImage(null);
       }
     } else {
       // Modo local
-      const post = localDb.createPost({
-        author_id: user.id,
-        content: newPostContent,
-        type: 'text',
-        privacy: 'public',
-      });
+      let post;
+      if (selectedImage) {
+        post = localDb.createPostWithImage({
+          author_id: user.id,
+          content: newPostContent,
+          type: 'image',
+          privacy: 'public',
+          image_url: selectedImage,
+        });
+      } else {
+        post = localDb.createPost({
+          author_id: user.id,
+          content: newPostContent,
+          type: 'text',
+          privacy: 'public',
+        });
+      }
       const postWithAuthor = {
         ...post,
         author: localDb.getUserById(user.id),
       };
       setPosts([postWithAuthor, ...posts]);
       setNewPostContent('');
+      setSelectedImage(null);
     }
     
     setCreating(false);
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const base64 = await localDb.fileToBase64(file);
+    setSelectedImage(base64);
+  };
+
+  const handleToggleComments = (postId: string) => {
+    const newExpanded = new Set(expandedComments);
+    if (newExpanded.has(postId)) {
+      newExpanded.delete(postId);
+    } else {
+      newExpanded.add(postId);
+    }
+    setExpandedComments(newExpanded);
+  };
+
+  const handleAddComment = (postId: string) => {
+    if (!user || !newComments[postId]?.trim()) return;
+
+    const comment = localDb.createComment(postId, user.id, newComments[postId]);
+    const commentWithAuthor = {
+      ...comment,
+      author: localDb.getUserById(user.id),
+    };
+
+    // Atualiza o post com o novo comentário
+    setPosts(posts.map(p => {
+      if (p.id === postId) {
+        return {
+          ...p,
+          comments_count: p.comments_count + 1,
+          comments: [...(p.comments || []), commentWithAuthor],
+        };
+      }
+      return p;
+    }));
+
+    setNewComments({ ...newComments, [postId]: '' });
   };
 
   const handleLike = async (postId: string) => {
@@ -121,9 +180,34 @@ export default function FeedPage() {
               className="w-full resize-none border-none focus:outline-none text-sm text-surface-700 placeholder-surface-400 min-h-[56px] leading-relaxed"
               rows={2}
             />
+            
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className="relative mt-3 mb-3">
+                <img src={selectedImage} alt="Preview" className="w-full max-h-96 object-cover rounded-xl" />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            
             <div className="flex items-center justify-between pt-3 border-t border-surface-100">
               <div className="flex items-center gap-0.5">
-                <button className="p-2 rounded-lg transition-colors text-surface-400 hover:text-green-600 hover:bg-green-50" title="Imagem">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-lg transition-colors text-surface-400 hover:text-green-600 hover:bg-green-50"
+                  title="Imagem"
+                >
                   <ImageIcon size={16} />
                 </button>
                 <button className="p-2 rounded-lg transition-colors text-surface-400 hover:text-blue-600 hover:bg-blue-50" title="Vídeo">
@@ -180,6 +264,11 @@ export default function FeedPage() {
 
             <div className="px-5 pb-4">
               <p className="text-surface-700 text-[14px] leading-[1.65] whitespace-pre-line">{post.content}</p>
+              {post.media_urls && post.media_urls.length > 0 && (
+                <div className="mt-3">
+                  <img src={post.media_urls[0]} alt="" className="w-full rounded-xl" />
+                </div>
+              )}
             </div>
 
             <div className="divider-gradient mx-5" />
@@ -193,7 +282,10 @@ export default function FeedPage() {
                   <Heart size={16} />
                   <span className="text-xs font-semibold">{post.likes_count}</span>
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-surface-500 hover:bg-surface-100 hover:text-primary-600 transition-all">
+                <button
+                  onClick={() => handleToggleComments(post.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-surface-500 hover:bg-surface-100 hover:text-primary-600 transition-all"
+                >
                   <MessageCircle size={16} />
                   <span className="text-xs font-semibold">{post.comments_count}</span>
                 </button>
@@ -203,6 +295,56 @@ export default function FeedPage() {
                 </button>
               </div>
             </div>
+
+            {/* Comments Section */}
+            {expandedComments.has(post.id) && (
+              <div className="px-5 pb-4 border-t border-surface-100 pt-3">
+                {/* Existing Comments */}
+                {post.comments && post.comments.length > 0 && (
+                  <div className="space-y-3 mb-3">
+                    {post.comments.map((comment: any) => (
+                      <div key={comment.id} className="flex gap-2">
+                        <img
+                          src={comment.author?.avatar_url || comment.author?.avatar || ''}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-surface-100"
+                        />
+                        <div className="flex-1 bg-surface-50 rounded-xl px-3 py-2">
+                          <p className="text-xs font-semibold text-surface-900">{comment.author?.full_name}</p>
+                          <p className="text-sm text-surface-700 mt-0.5">{comment.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Comment */}
+                <div className="flex gap-2">
+                  <img
+                    src={user?.avatar || ''}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-surface-100"
+                  />
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      type="text"
+                      value={newComments[post.id] || ''}
+                      onChange={e => setNewComments({ ...newComments, [post.id]: e.target.value })}
+                      onKeyPress={e => e.key === 'Enter' && handleAddComment(post.id)}
+                      placeholder="Escreva um comentário..."
+                      className="flex-1 px-3 py-2 bg-surface-50 border border-surface-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:border-surface-300 transition-all"
+                    />
+                    <button
+                      onClick={() => handleAddComment(post.id)}
+                      disabled={!newComments[post.id]?.trim()}
+                      className="px-3 py-2 bg-surface-900 text-white text-xs font-semibold rounded-xl hover:bg-surface-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </article>
         ))
       )}
