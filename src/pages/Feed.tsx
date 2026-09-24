@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchPosts, createPost, togglePostLike } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { Heart, MessageCircle, Share2, Globe, Lock, Cross, Send, ImageIcon, Video, Smile } from 'lucide-react';
+import * as localDb from '../lib/localDatabase';
+import { fetchPosts, createPost, togglePostLike } from '../lib/database';
+import { Heart, MessageCircle, Share2, Globe, Lock, Cross, ImageIcon, Video, Smile } from 'lucide-react';
 
 export default function FeedPage() {
   const { user } = useAuth();
@@ -16,13 +17,14 @@ export default function FeedPage() {
   }, []);
 
   const loadPosts = async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
+    if (isSupabaseConfigured) {
+      const data = await fetchPosts(20, 0);
+      setPosts(data);
+    } else {
+      // Modo local
+      const data = localDb.getPosts(20, 0);
+      setPosts(data);
     }
-
-    const data = await fetchPosts(20, 0);
-    setPosts(data);
     setLoading(false);
   };
 
@@ -30,28 +32,55 @@ export default function FeedPage() {
     if (!newPostContent.trim() || !user) return;
 
     setCreating(true);
-    const post = await createPost({
-      author_id: user.id,
-      content: newPostContent,
-      type: 'text',
-      privacy: 'public',
-    });
-
-    if (post) {
-      setPosts([post, ...posts]);
+    
+    if (isSupabaseConfigured) {
+      const post = await createPost({
+        author_id: user.id,
+        content: newPostContent,
+        type: 'text',
+        privacy: 'public',
+      });
+      if (post) {
+        setPosts([post, ...posts]);
+        setNewPostContent('');
+      }
+    } else {
+      // Modo local
+      const post = localDb.createPost({
+        author_id: user.id,
+        content: newPostContent,
+        type: 'text',
+        privacy: 'public',
+      });
+      const postWithAuthor = {
+        ...post,
+        author: localDb.getUserById(user.id),
+      };
+      setPosts([postWithAuthor, ...posts]);
       setNewPostContent('');
     }
+    
     setCreating(false);
   };
 
   const handleLike = async (postId: string) => {
     if (!user) return;
 
-    const result = await togglePostLike(postId, user.id);
-    if (result) {
+    if (isSupabaseConfigured) {
+      const result = await togglePostLike(postId, user.id);
+      if (result) {
+        setPosts(posts.map(p => 
+          p.id === postId 
+            ? { ...p, likes_count: result.liked ? p.likes_count + 1 : p.likes_count - 1 }
+            : p
+        ));
+      }
+    } else {
+      // Modo local
+      const liked = localDb.toggleLike(postId, user.id);
       setPosts(posts.map(p => 
         p.id === postId 
-          ? { ...p, likes_count: result.liked ? p.likes_count + 1 : p.likes_count - 1 }
+          ? { ...p, likes_count: liked ? p.likes_count + 1 : p.likes_count - 1 }
           : p
       ));
     }
@@ -73,28 +102,6 @@ export default function FeedPage() {
         <div className="bg-white rounded-2xl border border-surface-200/60 shadow-sm p-8 text-center">
           <div className="w-8 h-8 border-2 border-surface-300 border-t-primary-600 rounded-full animate-spin mx-auto" />
           <p className="text-sm text-surface-500 mt-3">Carregando feed...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-gradient-to-br from-primary-50 to-gold-50 rounded-2xl border border-primary-200 p-8 text-center">
-          <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Cross size={32} className="text-primary-600" />
-          </div>
-          <h2 className="text-xl font-serif font-semibold text-surface-900 mb-2">Configure o Supabase</h2>
-          <p className="text-sm text-surface-600 mb-4">
-            Para usar o Lumen com usuários reais, configure o Supabase:
-          </p>
-          <ol className="text-xs text-surface-600 text-left space-y-2 bg-white/50 rounded-xl p-4">
-            <li>1. Crie um projeto em <a href="https://supabase.com" target="_blank" className="text-primary-600 underline">supabase.com</a></li>
-            <li>2. Execute o SQL em <code className="bg-surface-100 px-2 py-0.5 rounded">supabase/schema.sql</code></li>
-            <li>3. Copie as credenciais para <code className="bg-surface-100 px-2 py-0.5 rounded">.env</code></li>
-            <li>4. Reinicie o servidor</li>
-          </ol>
         </div>
       </div>
     );
@@ -150,10 +157,9 @@ export default function FeedPage() {
       ) : (
         posts.map(post => (
           <article key={post.id} className="bg-white rounded-2xl border border-surface-200/60 shadow-sm hover:shadow-md transition-all animate-fade-in-up">
-            {/* Header */}
             <div className="flex items-start justify-between p-5 pb-3">
               <div className="flex items-center gap-3">
-                <img src={post.author?.avatar_url || ''} alt="" className="w-11 h-11 rounded-full object-cover ring-1 ring-surface-100 bg-surface-100" />
+                <img src={post.author?.avatar_url || post.author?.avatar || ''} alt="" className="w-11 h-11 rounded-full object-cover ring-1 ring-surface-100 bg-surface-100" />
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-surface-900 text-[13px]">{post.author?.full_name}</h4>
@@ -172,15 +178,12 @@ export default function FeedPage() {
               </div>
             </div>
 
-            {/* Content */}
             <div className="px-5 pb-4">
               <p className="text-surface-700 text-[14px] leading-[1.65] whitespace-pre-line">{post.content}</p>
             </div>
 
-            {/* Divider */}
             <div className="divider-gradient mx-5" />
 
-            {/* Actions */}
             <div className="flex items-center justify-between px-5 py-3">
               <div className="flex items-center gap-1">
                 <button 

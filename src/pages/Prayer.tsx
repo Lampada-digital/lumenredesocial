@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchPosts, createPost } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { Heart, Cross, Sparkles } from 'lucide-react';
+import * as localDb from '../lib/localDatabase';
+import { fetchPosts, createPost } from '../lib/database';
+import { Heart, Cross } from 'lucide-react';
 
 export default function PrayerPage() {
   const { user } = useAuth();
@@ -17,35 +18,52 @@ export default function PrayerPage() {
   }, []);
 
   const loadPrayers = async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
+    if (isSupabaseConfigured) {
+      const data = await fetchPosts(50, 0);
+      setPrayers(data.filter(p => p.type === 'prayer'));
+    } else {
+      const data = localDb.getPosts(50, 0);
+      setPrayers(data.filter(p => p.type === 'prayer'));
     }
-
-    const data = await fetchPosts(50, 0);
-    setPrayers(data.filter(p => p.type === 'prayer'));
     setLoading(false);
   };
 
   const handleCreate = async () => {
     if (!user || !title.trim() || !description.trim()) return;
 
-    const post = await createPost({
-      author_id: user.id,
-      content: description,
-      type: 'prayer',
-      privacy: 'public',
-      prayer_title: title,
-      prayer_description: description,
-      prayer_category: 'geral',
-    });
-
-    if (post) {
-      setPrayers([post, ...prayers]);
-      setTitle('');
-      setDescription('');
-      setShowCreateForm(false);
+    if (isSupabaseConfigured) {
+      const post = await createPost({
+        author_id: user.id,
+        content: description,
+        type: 'prayer',
+        privacy: 'public',
+        prayer_title: title,
+        prayer_description: description,
+        prayer_category: 'geral',
+      });
+      if (post) {
+        setPrayers([post, ...prayers]);
+      }
+    } else {
+      const post = localDb.createPost({
+        author_id: user.id,
+        content: description,
+        type: 'prayer',
+        privacy: 'public',
+        prayer_title: title,
+        prayer_description: description,
+        prayer_category: 'geral',
+      });
+      const postWithAuthor = {
+        ...post,
+        author: localDb.getUserById(user.id),
+      };
+      setPrayers([postWithAuthor, ...prayers]);
     }
+
+    setTitle('');
+    setDescription('');
+    setShowCreateForm(false);
   };
 
   if (loading) {
@@ -126,7 +144,7 @@ export default function PrayerPage() {
           prayers.map(prayer => (
             <div key={prayer.id} className="bg-white rounded-2xl border border-surface-200/60 shadow-sm p-5 animate-fade-in-up">
               <div className="flex items-start gap-3.5">
-                <img src={prayer.author?.avatar_url || ''} alt="" className="w-10 h-10 rounded-full object-cover ring-1 ring-surface-100 bg-surface-100" />
+                <img src={prayer.author?.avatar_url || prayer.author?.avatar || ''} alt="" className="w-10 h-10 rounded-full object-cover ring-1 ring-surface-100 bg-surface-100" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-surface-900 text-sm">{prayer.author?.full_name}</h4>

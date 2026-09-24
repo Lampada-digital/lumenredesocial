@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchEvents, joinEvent } from '../lib/database';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { Calendar, MapPin, Clock, Search, Plus } from 'lucide-react';
+import * as localDb from '../lib/localDatabase';
+import { fetchEvents, joinEvent } from '../lib/database';
+import { Calendar, MapPin, Clock, Search } from 'lucide-react';
 
 const eventTypes = [
   { id: 'all', label: 'Todos' },
@@ -25,19 +26,26 @@ export default function EventsPage() {
   }, []);
 
   const loadEvents = async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
+    if (isSupabaseConfigured) {
+      const data = await fetchEvents(50);
+      setEvents(data);
+    } else {
+      const data = localDb.getEvents();
+      setEvents(data);
     }
-
-    const data = await fetchEvents(50);
-    setEvents(data);
     setLoading(false);
   };
 
   const handleJoin = async (eventId: string) => {
     if (!user) return;
-    await joinEvent(eventId, user.id, 'going');
+
+    if (isSupabaseConfigured) {
+      await joinEvent(eventId, user.id, 'going');
+    } else {
+      localDb.joinEvent(eventId, user.id);
+      const data = localDb.getEvents();
+      setEvents(data);
+    }
   };
 
   const filtered = events.filter(e => {
