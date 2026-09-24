@@ -24,21 +24,27 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const success = await login(email, password);
-        if (success) navigate('/');
-        else setError('Credenciais inválidas.');
+        const result = await login(email, password);
+        if (result.success) {
+          navigate('/');
+        } else {
+          setError(result.error || 'Credenciais inválidas.');
+        }
       } else {
         if (!name || !email || !password || !username) {
           setError('Preencha todos os campos obrigatórios.');
           setLoading(false);
           return;
         }
-        const success = await register({ name, email, username, password, city, parish });
-        if (success) navigate('/');
-        else setError('Erro ao criar conta.');
+        const result = await register({ full_name: name, email, username, password, city, parish });
+        if (result.success) {
+          navigate('/');
+        } else {
+          setError(result.error || 'Erro ao criar conta.');
+        }
       }
-    } catch {
-      setError('Erro de conexão.');
+    } catch (err: any) {
+      setError(err.message || 'Erro de conexão.');
     } finally {
       setLoading(false);
     }
