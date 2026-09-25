@@ -663,6 +663,180 @@ export function createPostWithImage(postData: {
 }
 
 // ============================================
+// POST WITH VIDEO
+// ============================================
+
+export function createPostWithVideo(postData: {
+  author_id: string;
+  content: string;
+  video_url: string;
+  privacy?: string;
+}): LocalPost {
+  const posts = getStore<LocalPost>(DB_KEYS.POSTS);
+  
+  const newPost: LocalPost = {
+    id: generateId(),
+    author_id: postData.author_id,
+    content: postData.content,
+    type: 'video',
+    privacy: postData.privacy || 'public',
+    media_urls: [postData.video_url],
+    hashtags: [],
+    mentions: [],
+    likes_count: 0,
+    comments_count: 0,
+    shares_count: 0,
+    prayer_title: '',
+    prayer_description: '',
+    prayer_category: '',
+    prayers_count: 0,
+    created_at: new Date().toISOString(),
+  };
+  
+  posts.unshift(newPost);
+  setStore(DB_KEYS.POSTS, posts);
+  
+  return newPost;
+}
+
+// ============================================
+// SHARE POST
+// ============================================
+
+export function sharePost(postId: string, userId: string, message?: string): LocalPost {
+  const posts = getStore<LocalPost>(DB_KEYS.POSTS);
+  const originalPost = posts.find(p => p.id === postId);
+  
+  if (!originalPost) throw new Error('Post não encontrado');
+  
+  const sharedPost: LocalPost = {
+    id: generateId(),
+    author_id: userId,
+    content: message || `Compartilhou uma publicação de ${originalPost.author_id}`,
+    type: 'text',
+    privacy: 'public',
+    media_urls: [],
+    hashtags: [],
+    mentions: [],
+    likes_count: 0,
+    comments_count: 0,
+    shares_count: 0,
+    prayer_title: '',
+    prayer_description: '',
+    prayer_category: '',
+    prayers_count: 0,
+    created_at: new Date().toISOString(),
+  };
+  
+  posts.unshift(sharedPost);
+  setStore(DB_KEYS.POSTS, posts);
+  
+  // Atualiza contador do post original
+  originalPost.shares_count++;
+  setStore(DB_KEYS.POSTS, posts);
+  
+  return sharedPost;
+}
+
+// ============================================
+// MESSAGES SYSTEM
+// ============================================
+
+export interface LocalConversation {
+  id: string;
+  participants: string[];
+  is_group: boolean;
+  group_name?: string;
+  last_message?: string;
+  last_message_at?: string;
+  created_at: string;
+}
+
+export interface LocalMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  type: 'text' | 'emoji' | 'image';
+  created_at: string;
+  sender?: LocalUser;
+}
+
+export function createConversation(participants: string[], isGroup = false, groupName?: string): LocalConversation {
+  const conversations = getStore<LocalConversation>('lumen_conversations');
+  
+  const newConversation: LocalConversation = {
+    id: generateId(),
+    participants,
+    is_group: isGroup,
+    group_name: groupName,
+    created_at: new Date().toISOString(),
+  };
+  
+  conversations.unshift(newConversation);
+  setStore('lumen_conversations', conversations);
+  
+  return newConversation;
+}
+
+export function getUserConversations(userId: string): LocalConversation[] {
+  const conversations = getStore<LocalConversation>('lumen_conversations');
+  return conversations.filter(c => c.participants.includes(userId));
+}
+
+export function sendMessage(conversationId: string, senderId: string, content: string, type: 'text' | 'emoji' | 'image' = 'text'): LocalMessage {
+  const messages = getStore<LocalMessage>('lumen_messages');
+  
+  const newMessage: LocalMessage = {
+    id: generateId(),
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content,
+    type,
+    created_at: new Date().toISOString(),
+  };
+  
+  messages.push(newMessage);
+  setStore('lumen_messages', messages);
+  
+  // Atualiza última mensagem da conversa
+  const conversations = getStore<LocalConversation>('lumen_conversations');
+  const conversation = conversations.find(c => c.id === conversationId);
+  if (conversation) {
+    conversation.last_message = content;
+    conversation.last_message_at = newMessage.created_at;
+    setStore('lumen_conversations', conversations);
+  }
+  
+  return newMessage;
+}
+
+export function getConversationMessages(conversationId: string): LocalMessage[] {
+  const messages = getStore<LocalMessage>('lumen_messages');
+  const users = getStore<LocalUser>(DB_KEYS.USERS);
+  
+  return messages
+    .filter(m => m.conversation_id === conversationId)
+    .map(msg => ({
+      ...msg,
+      sender: users.find(u => u.id === msg.sender_id),
+    }));
+}
+
+export function findOrCreateDirectConversation(userId1: string, userId2: string): LocalConversation {
+  const conversations = getUserConversations(userId1);
+  const existing = conversations.find(c => 
+    !c.is_group && 
+    c.participants.includes(userId1) && 
+    c.participants.includes(userId2)
+  );
+  
+  if (existing) return existing;
+  
+  return createConversation([userId1, userId2], false);
+}
+
+// ============================================
 // INITIAL DATA
 // ============================================
 
